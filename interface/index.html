@@ -1,0 +1,35 @@
+<!DOCTYPE html>
+<html>
+  <head>
+    <meta charset="UTF-8" />
+    <title>Damage Deposit Control Panel</title>
+  </head>
+  <body>
+    <h1>Damage Deposit Control Panel</h1>
+    <button id="connect-wallet-btn">Connect to Wallet</button>
+    <p id="wallet-address"></p>
+    <label for="address">Contract Address:</label>
+    <input type="text" id="address" />
+    <label for="input">Input:</label>
+    <input type="text" id="input" />
+    <div>
+      <button id="check-btn" disabled="true" autocomplete="off">Check</button>
+      <button id="deposit-btn" disabled="true" autocomplete="off">Deposit</button>
+      <button id="initiate-btn" disabled="true" autocomplete="off">Signal Withdrawal</button>
+      <button id="withdraw-btn" disabled="true" autocomplete="off">Withdraw</button>
+    </div>
+    <div>
+      <button id="confiscate-btn" hidden="true" autocomplete="off">Confiscate Deposit</button>
+      <button id="pause-btn" hidden="true" autocomplete="off">Pause Deposits</button>
+      <button id="unpause-btn" hidden="true" autocomplete="off">Unpause Deposits</button>
+      <button id="adminwithdraw-btn" hidden="true" autocomplete="off">Admin Withdraw</button>
+      <button id="contractstatus-btn" disabled="true" autocomplete="off">Contract Status</button>
+    </div>
+    <p id="output"></p>
+    <script src="./index.js" type="module"></script>
+    <script type="module">
+        import {ethers} from './ethers.esm.js';
+        window.ethers = ethers;
+    </script>
+  </body>
+</html>
