@@ -366,11 +366,11 @@ async function adminWithdrawFunction() {
   try {
     const tx = await contract.privWithdraw(inputEl.value);
     tx.wait();
+    outputEl.innerText = " Admin withdrawal completed";
   } catch (error) {
     console.log(error);
     outputEl.innerText = "Error withdrawing as admin"
   }
-  outputEl.innerText = " Admin withdrawal completed";
 }
 
 // Define the withdraw function
