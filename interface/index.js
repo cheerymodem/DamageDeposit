@@ -316,11 +316,12 @@ const addressEl = document.getElementById("address");
 const walletAddressEl = document.getElementById("wallet-address");
 const pauseBtn = document.getElementById("pause-btn");
 const unpauseBtn = document.getElementById("unpause-btn");
+const statusEl = document.getElementById("status");
 const outputEl = document.getElementById("output");
 const adminwithdrawBtn = document.getElementById("adminwithdraw-btn");
 const contractstatusBtn = document.getElementById("contractstatus-btn");
-const adminButtons = [pauseBtn,unpauseBtn,confiscateBtn,adminwithdrawBtn];
-const userButtons = [checkBtn,depositBtn,withdrawBtn,initiateBtn,contractstatusBtn];
+const adminButtons = [pauseBtn,unpauseBtn,confiscateBtn,adminwithdrawBtn,checkBtn];
+const userButtons = [depositBtn,withdrawBtn,initiateBtn,contractstatusBtn];
 // Add event listeners button
 checkBtn.addEventListener("click", checkFunction);
 depositBtn.addEventListener("click", depositFunction);
@@ -347,6 +348,7 @@ async function checkFunction() {
       outputEl.innerText = ("Error checking deposit, verify contract address");
     }
   }
+  checkContract();
 }
 
 // Define the deposit function
@@ -364,9 +366,11 @@ async function depositFunction() {
       outputEl.innerText = ("Error making deposit, wallet balance insufficient.");
     }
     else {
-      outputEl.innerText = ("Error making despoit " + error);
+      outputEl.innerText = ("Error making deposit ");
+      console.log(error);
     }
   }
+  checkContract();
 }
 
 // Define the admin withdraw function
@@ -379,6 +383,7 @@ async function adminWithdrawFunction() {
     console.log(error);
     outputEl.innerText = "Error withdrawing as admin"
   }
+  checkContract();
 }
 
 // Define the withdraw function
@@ -390,6 +395,7 @@ async function withdrawFunction() {
     console.log(error);
     outputEl.innerText = "Error withdrawing"
   }
+  checkContract();
 }
 
 // Define the confiscate deposit function
@@ -403,36 +409,38 @@ async function confiscateFunction() {
   } catch (error) {
     console.log(error);
   }
+  checkContract();
 }
 
 // Define the function to intiate a withdrawal
 async function initiateFunction() {
   try {
     const tx = await contract.initiateWithdraw();
+    const filter = contract.filters.WithdrawalInitiated(myAddress);
+    contract.once( filter, (address,time) => {
+      const date = new Date(time.toNumber() * 1000).toLocaleString();
+      outputEl.innerText = ('You can withdraw at: '+ date);
+    });
   } catch (e){
     outputEl.innerText = ("Error intiating withdrawal, do you have a valid deposit?");
     console.log(e);
   }
-  const filter = contract.filters.WithdrawalInitiated(myAddress);
-  contract.once( filter, (address,time) => {
-    const date = new Date(time.toNumber() * 1000).toLocaleString();
-    outputEl.innerText = ('You can withdraw at: '+ date);
-
-  });
+  checkContract();
 }
 
 // Define the function to pause deposits
 async function pauseFunction() {
   try {
     const tx = await contract.pause();
+    outputEl.innerText =  ("Deposits paused");
   } catch (e){
     outputEl.innerText = ("Error pausing deposits, are you the contract owner?");
     console.log(e);
   }
-  outputEl.innerText =  ("Deposits paused");
+  checkContract();
 }
 
-// Define the function to check contract status
+// Collect the status from the deployed contract
 async function checkContract() {
   try {
     if (await contract.paused()){
@@ -446,7 +454,7 @@ async function checkContract() {
     } else{
       text += ("Account "+ myAddress + " does not have a valid deposit");
     }
-    outputEl.innerText = text;
+    statusEl.innerText = text;
   } catch (e){
     outputEl.innerText = ("Error checking contract, verify contract address");
     console.log(e);
@@ -457,11 +465,12 @@ async function checkContract() {
 async function unpauseFunction() {
   try {
     const tx = await contract.unpause();
+    outputEl.innerText =  ("Deposits unpaused");
   } catch (e){
     outputEl.innerText = ("Error unpausing deposits, are you the contract owner?");
     console.log(e);
   }
-  outputEl.innerText =  ("Deposits unpaused");
+  checkContract();
 }
 
 // Add an event listener to the connect wallet button
@@ -502,4 +511,5 @@ connectWalletBtn.addEventListener("click", async () => {
       el.hidden = false
     )
   }
+  checkContract();
 })
