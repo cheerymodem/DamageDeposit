@@ -342,7 +342,7 @@ async function checkFunction() {
     }
   } else {
     try{
-      outputEl.innerText = await contract.checkDeposit(await signer.getAddress());
+      outputEl.innerText = await contract.checkDeposit(myAddress);
     } catch (error){
       outputEl.innerText = ("Error checking deposit, verify contract address");
     }
@@ -354,10 +354,18 @@ async function depositFunction() {
   const amount = await contract.depositRequirement();
   outputEl.innerText = "deposit requirement: " + window.ethers.utils.formatEther(amount) + " ETH";
   try{
-  const tx = await contract.deposit({value: amount});
-  tx.wait();
+    const tx = await contract.deposit({value: amount});
+    tx.wait();
   } catch (error){
-    outputEl.innerText = ("Error making deposit, is the contract paused?");
+    if (await contract.paused()){
+      outputEl.innerText = ("Error making deposit, the contract is blocking new deposits.");
+    }
+    else if (amount > provider.getBalance(myAddress)){
+      outputEl.innerText = ("Error making deposit, wallet balance insufficient.");
+    }
+    else {
+      outputEl.innerText = ("Error making despoit " + error);
+    }
   }
 }
 
@@ -366,7 +374,7 @@ async function adminWithdrawFunction() {
   try {
     const tx = await contract.privWithdraw(inputEl.value);
     tx.wait();
-    outputEl.innerText = " Admin withdrawal completed";
+    outputEl.innerText = "Admin withdrawal completed";
   } catch (error) {
     console.log(error);
     outputEl.innerText = "Error withdrawing as admin"
@@ -427,7 +435,18 @@ async function pauseFunction() {
 // Define the function to check contract status
 async function checkContract() {
   try {
-    outputEl.innerText = "Deposits paused: " + await contract.paused();
+    if (await contract.paused()){
+      text = "Deposits paused\n"
+    } else{
+      text = "Deposits can be made\n"
+    }
+    text += ("Deposit requirement: " + window.ethers.utils.formatEther(await contract.depositRequirement()) + " ETH\n");
+    if (await contract.checkDeposit(myAddress)){
+      text += ("Account "+ myAddress + " has a valid deposit");
+    } else{
+      text += ("Account "+ myAddress + " does not have a valid deposit");
+    }
+    outputEl.innerText = text;
   } catch (e){
     outputEl.innerText = ("Error checking contract, verify contract address");
     console.log(e);
