@@ -6,19 +6,20 @@
 // global scope, and execute the script.
 const hre = require("hardhat");
 
+// The amount of time in seconds between a user deactivating their deposit and being able to withdraw
+const withdrawPeriod = 5000;
+// The amount of Ethereum to be deposited per user
+const depositRequirement = "0.001";
+
 async function main() {
-  const withdrawPeriod = 5;
-  const depositRequirement = hre.ethers.utils.parseEther("1");
-  
+
   const DD = await hre.ethers.getContractFactory("DamageDeposit");
-  const dd = await DD.deploy(withdrawPeriod, depositRequirement);
+  const dd = await DD.deploy(withdrawPeriod, hre.ethers.utils.parseEther(depositRequirement));
 
   await dd.deployed();
 
   console.log(
-    `DamageDeposit with ${ethers.utils.formatEther(
-      depositRequirement
-    )}ETH and unlock wait period ${withdrawPeriod} seconds deployed to ${dd.address}`
+    `DamageDeposit with ${depositRequirement} ETH deposit and unlock wait period ${withdrawPeriod} seconds deployed to ${dd.address}`
   );
 }
 

@@ -444,7 +444,7 @@ async function pauseFunction() {
 async function checkContract() {
   try {
     if (await contract.paused()){
-      text = "Deposits paused\n"
+      var text = "Deposits paused\n"
     } else{
       text = "Deposits can be made\n"
     }

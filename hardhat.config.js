@@ -6,4 +6,14 @@ module.exports = {
   mocha:{
     reporter: 'spec',
   },
+  networks: {
+    sepolia:{
+      url: "",
+      accounts: [""]
+    },
+    mainnet:{
+      url:"",
+      accounts: [""]
+    }
+  },
 };
