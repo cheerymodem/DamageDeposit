@@ -53,7 +53,7 @@ contract DamageDeposit is Ownable {
       revert BadDepositAmount();
     }
     // Sender should not already have a deposit
-    if(checkDeposit(msg.sender)){
+    if(EnumerableMap.contains(accounts, msg.sender)){
       revert DepositAlreadyPresent();
     }
     // Register the sending address
@@ -61,10 +61,14 @@ contract DamageDeposit is Ownable {
     emit DepositMade(msg.sender);
   }
 
-  // Check valid deposit by address
-  function checkDeposit(address account) view public returns (bool) {
-    // The account must be registered and not be in withdrawal wait period
-    return (EnumerableMap.contains(accounts, account) && EnumerableMap.get(accounts, account) == 0 );
+  // Check for presence of deposit and return withdrawal coundown if present
+  function checkDeposit(address account) view public returns (bool,uint256) {
+    // Check if account is registered
+    if (EnumerableMap.contains(accounts, account)){
+      return(true, EnumerableMap.get(accounts, account));
+    } else{
+      return(false,0);
+    }
   }
 
   // Withdraw deposit (user)

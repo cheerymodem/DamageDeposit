@@ -337,16 +337,16 @@ contractstatusBtn.addEventListener("click", checkContract);
 async function checkFunction() {
   if (inputEl.value) {
     try{
-      outputEl.innerText = await contract.checkDeposit(inputEl.value);
+      if (await contract.checkDeposit(inputEl.value)){
+        outputEl.innerText = (inputEl.value + " has a valid deposit.")
+      } else {
+        outputEl.innerText = (inputEl.value + " does not have a valid deposit.")
+      }
     } catch (error){
       outputEl.innerText = ("Error checking deposit, verify contract address");
     }
   } else {
-    try{
-      outputEl.innerText = await contract.checkDeposit(myAddress);
-    } catch (error){
-      outputEl.innerText = ("Error checking deposit, verify contract address");
-    }
+    outputEl.innerText = ("Must specify a user address to check.")
   }
   checkContract();
 }
@@ -450,9 +450,12 @@ async function checkContract() {
     }
     text += ("Deposit requirement: " + window.ethers.utils.formatEther(await contract.depositRequirement()) + " ETH\n");
     if (await contract.checkDeposit(myAddress)){
-      text += ("Account "+ myAddress + " has a valid deposit");
-    } else{
-      text += ("Account "+ myAddress + " does not have a valid deposit");
+      text += ("Account "+ myAddress + " has a valid deposit\n");
+    } else if (contract.){
+      text += ("Account "+ myAddress + " does not have a valid deposit\n");
+    }
+    if (await contract.owner() == await signer.getAddress()){
+      text += ("You are the contract owner.");
     }
     statusEl.innerText = text;
   } catch (e){
