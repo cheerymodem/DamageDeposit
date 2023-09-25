@@ -63,7 +63,7 @@ contract DamageDeposit is Ownable {
 
   // Check for presence of deposit and return withdrawal coundown if present
   function checkDeposit(address account) view public returns (bool,uint256) {
-    // Check if account is registered
+    // Valid deposits return true with a wait period of 0
     if (EnumerableMap.contains(accounts, account)){
       return(true, EnumerableMap.get(accounts, account));
     } else{

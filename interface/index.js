@@ -141,6 +141,50 @@ const abi = [
     "type": "event"
   },
   {
+    "inputs": [
+      {
+        "internalType": "address",
+        "name": "account",
+        "type": "address"
+      }
+    ],
+    "name": "checkDeposit",
+    "outputs": [
+      {
+        "internalType": "bool",
+        "name": "",
+        "type": "bool"
+      },
+      {
+        "internalType": "uint256",
+        "name": "",
+        "type": "uint256"
+      }
+    ],
+    "stateMutability": "view",
+    "type": "function"
+  },
+  {
+    "inputs": [
+      {
+        "internalType": "address",
+        "name": "account",
+        "type": "address"
+      }
+    ],
+    "name": "confiscate",
+    "outputs": [],
+    "stateMutability": "nonpayable",
+    "type": "function"
+  },
+  {
+    "inputs": [],
+    "name": "deposit",
+    "outputs": [],
+    "stateMutability": "payable",
+    "type": "function"
+  },
+  {
     "inputs": [],
     "name": "depositRequirement",
     "outputs": [
@@ -151,8 +195,14 @@ const abi = [
       }
     ],
     "stateMutability": "view",
-    "type": "function",
-    "constant": true
+    "type": "function"
+  },
+  {
+    "inputs": [],
+    "name": "initiateWithdraw",
+    "outputs": [],
+    "stateMutability": "nonpayable",
+    "type": "function"
   },
   {
     "inputs": [],
@@ -165,8 +215,14 @@ const abi = [
       }
     ],
     "stateMutability": "view",
-    "type": "function",
-    "constant": true
+    "type": "function"
+  },
+  {
+    "inputs": [],
+    "name": "pause",
+    "outputs": [],
+    "stateMutability": "nonpayable",
+    "type": "function"
   },
   {
     "inputs": [],
@@ -179,8 +235,20 @@ const abi = [
       }
     ],
     "stateMutability": "view",
-    "type": "function",
-    "constant": true
+    "type": "function"
+  },
+  {
+    "inputs": [
+      {
+        "internalType": "address",
+        "name": "account",
+        "type": "address"
+      }
+    ],
+    "name": "privWithdraw",
+    "outputs": [],
+    "stateMutability": "nonpayable",
+    "type": "function"
   },
   {
     "inputs": [],
@@ -204,45 +272,10 @@ const abi = [
   },
   {
     "inputs": [],
-    "name": "withdrawPeriod",
-    "outputs": [
-      {
-        "internalType": "uint256",
-        "name": "",
-        "type": "uint256"
-      }
-    ],
-    "stateMutability": "view",
-    "type": "function",
-    "constant": true
-  },
-  {
-    "inputs": [],
-    "name": "deposit",
+    "name": "unpause",
     "outputs": [],
-    "stateMutability": "payable",
-    "type": "function",
-    "payable": true
-  },
-  {
-    "inputs": [
-      {
-        "internalType": "address",
-        "name": "account",
-        "type": "address"
-      }
-    ],
-    "name": "checkDeposit",
-    "outputs": [
-      {
-        "internalType": "bool",
-        "name": "",
-        "type": "bool"
-      }
-    ],
-    "stateMutability": "view",
-    "type": "function",
-    "constant": true
+    "stateMutability": "nonpayable",
+    "type": "function"
   },
   {
     "inputs": [],
@@ -252,50 +285,16 @@ const abi = [
     "type": "function"
   },
   {
-    "inputs": [
+    "inputs": [],
+    "name": "withdrawPeriod",
+    "outputs": [
       {
-        "internalType": "address",
-        "name": "account",
-        "type": "address"
+        "internalType": "uint256",
+        "name": "",
+        "type": "uint256"
       }
     ],
-    "name": "confiscate",
-    "outputs": [],
-    "stateMutability": "nonpayable",
-    "type": "function"
-  },
-  {
-    "inputs": [
-      {
-        "internalType": "address",
-        "name": "account",
-        "type": "address"
-      }
-    ],
-    "name": "privWithdraw",
-    "outputs": [],
-    "stateMutability": "nonpayable",
-    "type": "function"
-  },
-  {
-    "inputs": [],
-    "name": "pause",
-    "outputs": [],
-    "stateMutability": "nonpayable",
-    "type": "function"
-  },
-  {
-    "inputs": [],
-    "name": "unpause",
-    "outputs": [],
-    "stateMutability": "nonpayable",
-    "type": "function"
-  },
-  {
-    "inputs": [],
-    "name": "initiateWithdraw",
-    "outputs": [],
-    "stateMutability": "nonpayable",
+    "stateMutability": "view",
     "type": "function"
   }
 ];
@@ -333,18 +332,25 @@ unpauseBtn.addEventListener("click", unpauseFunction);
 adminwithdrawBtn.addEventListener("click", adminWithdrawFunction);
 contractstatusBtn.addEventListener("click", checkContract);
 
-// Define the account checking function
+// Define the deposit checking function
 async function checkFunction() {
   if (inputEl.value) {
     try{
-      if (await contract.checkDeposit(inputEl.value)){
-        outputEl.innerText = (inputEl.value + " has a valid deposit.")
-      } else {
-        outputEl.innerText = (inputEl.value + " does not have a valid deposit.")
+      const validStatus = await contract.checkDeposit(inputEl.value);
+      if (validStatus[0] && validStatus[1] == 0){
+        outputEl.innerText = ("Account "+ inputEl.value + " has a valid deposit\n");
+      } else if (validStatus[1] > 0){
+        const date = new Date(validStatus[1].toNumber() * 1000).toLocaleString();
+        outputEl.innerText = ("Account "+ inputEl.value + " is waiting for withdrawal at "+date+" GMT\n");
+        // TODO: display this using the user's local time zone
+      } else{
+        outputEl.innerText = ("Account "+ inputEl.value + " does not have a valid deposit\n");
       }
-    } catch (error){
-      outputEl.innerText = ("Error checking deposit, verify contract address");
     }
+      catch(e){
+        outputEl.innerText = ("Error checking deposit, verify contract and user address");
+        console.log(e);
+      }
   } else {
     outputEl.innerText = ("Must specify a user address to check.")
   }
@@ -449,9 +455,14 @@ async function checkContract() {
       text = "Deposits can be made\n"
     }
     text += ("Deposit requirement: " + window.ethers.utils.formatEther(await contract.depositRequirement()) + " ETH\n");
-    if (await contract.checkDeposit(myAddress)){
+    const validStatus = await contract.checkDeposit(myAddress);
+    if (validStatus[0] && validStatus[1] == 0){
       text += ("Account "+ myAddress + " has a valid deposit\n");
-    } else if (contract.){
+    } else if (validStatus[1] > 0){
+      const date = new Date(validStatus[1].toNumber() * 1000).toLocaleString();
+      text += ("Account "+ myAddress + " is waiting for withdrawal at "+date+" GMT\n");
+      // TODO: display this using the user's local time zone
+    } else{
       text += ("Account "+ myAddress + " does not have a valid deposit\n");
     }
     if (await contract.owner() == await signer.getAddress()){
