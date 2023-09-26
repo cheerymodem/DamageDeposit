@@ -347,8 +347,8 @@ async function checkFunction() {
         outputEl.innerText = ("Account "+ inputEl.value + " does not have a valid deposit\n");
       }
     }
-      catch(e){
-        outputEl.innerText = ("Error checking deposit, verify contract and user address");
+      catch(e){ 
+        outputEl.innerText = ("Error checking deposit, verify contract and user address");  
         console.log(e);
       }
   } else {
@@ -370,6 +370,9 @@ async function depositFunction() {
     }
     else if (amount > provider.getBalance(myAddress)){
       outputEl.innerText = ("Error making deposit, wallet balance insufficient.");
+    }
+    else if (error.reason == "Error: VM Exception while processing transaction: reverted with custom error 'DepositAlreadyPresent()'"){
+      outputEl.innerText = ("Error making deposit, address has existing deposit.");
     }
     else {
       outputEl.innerText = ("Error making deposit ");
