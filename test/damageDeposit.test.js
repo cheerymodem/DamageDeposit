@@ -16,6 +16,7 @@ const { BN, expectEvent, expectRevert} = require('@openzeppelin/test-helpers');
     let tx;
     let owner;
     let otherAccount;
+    let ret;
 
     before("Deploy new contract", async function () {
       [owner,otherAccount,dd] = await deployContract();
@@ -23,7 +24,8 @@ const { BN, expectEvent, expectRevert} = require('@openzeppelin/test-helpers');
     });
 
     it("Testing checkDeposit before a deposit is made using non-owner", async () => {
-      assert.isFalse(await dd.checkDeposit(otherAccount.address));
+      ret = await dd.checkDeposit(otherAccount.address);
+      assert.isFalse(ret[0]);
     });
 
     it("Testing deposit function with incorrect amount", async () => {
@@ -57,7 +59,8 @@ const { BN, expectEvent, expectRevert} = require('@openzeppelin/test-helpers');
     });
 
     it("Testing checkDeposit returns true for valid deposit", async () => {
-      assert.isTrue(await dd.checkDeposit(otherAccount.address));
+      ret = await dd.checkDeposit(otherAccount.address);
+      assert.isTrue(ret[0]);
     });
   })
 
@@ -68,6 +71,7 @@ const { BN, expectEvent, expectRevert} = require('@openzeppelin/test-helpers');
     let owner;
     let otherAccount;
     let withdrawTime;
+    let ret;
 
     before("Deploy new contract", async function () {
       [owner,otherAccount,dd] = await deployContract();
@@ -128,7 +132,8 @@ const { BN, expectEvent, expectRevert} = require('@openzeppelin/test-helpers');
     });
 
     it("Testing validity of account marked for withdrawal", async () => {
-        assert.isFalse(await dd.checkDeposit(otherAccount.address));
+        ret = await dd.checkDeposit(otherAccount.address);
+        assert.isAbove(ret[1],0);
     });
 
     it("Testing withdrawal for valid account before withdraw period", async () => {
@@ -156,7 +161,8 @@ const { BN, expectEvent, expectRevert} = require('@openzeppelin/test-helpers');
     });
 
     it("Testing validity of account that has been withdrawn", async () => {
-      assert.isFalse(await dd.checkDeposit(otherAccount.address));
+      ret = await dd.checkDeposit(otherAccount.address);
+      assert.isFalse(ret[0]);
     });
 
     it("Testing withdrawal from already withdrawn account", async () => {
@@ -255,21 +261,24 @@ const { BN, expectEvent, expectRevert} = require('@openzeppelin/test-helpers');
     });
     
     it("Testing confiscating deposit", async () => {
-      assert.isTrue(await dd.checkDeposit(otherAccount.address));
+      ret = await dd.checkDeposit(otherAccount.address)
+      assert.isTrue(ret[0]);
       try{
         tx = await dd.confiscate(otherAccount.address);
       }
       catch(e){
         assert.fail(e);
       }
-      assert.isFalse(await dd.checkDeposit(otherAccount.address));
+      ret = await dd.checkDeposit(otherAccount.address)
+      assert.isFalse(ret[0]);
       tx = await tx.wait();
       assert.equal(tx.events[0].event,'DepositConfiscated');
     });
 
     it("Testing confiscating deposit as non-admin account", async () => {
       await dd.connect(otherAccount).deposit({value: depositRequirement});
-      assert.isTrue(await dd.checkDeposit(otherAccount.address));
+      ret = await dd.checkDeposit(otherAccount.address)
+      assert.isTrue(ret[0]);
       try{
         await dd.connect(otherAccount).confiscate(otherAccount.address);
         assert.fail('Expected an error to be thrown');
@@ -303,12 +312,15 @@ describe("End to end test",function (accounts) {
     tx = await dd.connect(owner).deposit({value: depositRequirement});
     tx = await tx.wait();
     assert.equal(tx.events[0].event,'DepositMade');
-    assert.isTrue(await dd.checkDeposit(otherAccount.address));
-    assert.isTrue(await dd.checkDeposit(owner.address));
+    ret = await dd.checkDeposit(otherAccount.address);
+    assert.isTrue(ret[0]);
+    ret = await dd.checkDeposit(owner.address)
+    assert.isTrue(ret[0]);
     tx = await dd.confiscate(otherAccount.address);
     tx = await tx.wait();
     assert.equal(tx.events[0].event,'DepositConfiscated');
-    assert.isFalse(await dd.checkDeposit(otherAccount.address));
+    ret = await dd.checkDeposit(otherAccount.address);
+    assert.isFalse(ret[0]);
     tx = await dd.connect(owner).initiateWithdraw();
     tx = await tx.wait();
     assert.equal(tx.events[0].event,'WithdrawalInitiated');
@@ -317,6 +329,7 @@ describe("End to end test",function (accounts) {
     tx = await dd.connect(owner).withdrawDeposit();
     tx = await tx.wait();
     assert.equal(tx.events[0].event,'DepositWithdrawn');
-    assert.isFalse(await dd.checkDeposit(owner.address));
+    ret = await dd.checkDeposit(owner.address)
+    assert.isFalse(ret[0]);
   });
 })
