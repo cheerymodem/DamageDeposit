@@ -9,7 +9,7 @@ error AddressNotRegistered();
 /// Withdrawal wait period not met, deposit unlocked at `time`
 error CannotWithdrawYet(uint256 time);
 /// Withdrawal not started, call initiateWithdraw() first
-error WithdrawalNotIntiated();
+error WithdrawalNotInitiated();
 /// Withdrawal already initiated, deposit unlocked at `time`
 error WithdrawalAlreadyInitiated(uint256 time);
 /// Wrong deposit amount sent, `depositRequirement` required
@@ -79,7 +79,7 @@ contract DamageDeposit is Ownable {
       revert AddressNotRegistered();
     // Account must have withdrawal time set
     if (timestamp == 0)
-      revert WithdrawalNotIntiated();
+      revert WithdrawalNotInitiated();
     // Account withdraw time must be before current block timestamp to allow withdrawal
     if (timestamp >= block.timestamp)
       revert CannotWithdrawYet({time: timestamp});
