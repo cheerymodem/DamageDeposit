@@ -85,7 +85,8 @@ contract DamageDeposit is Ownable {
       revert CannotWithdrawYet({time: timestamp});
     // Remove the account and refund the deposit to the caller
     EnumerableMap.remove(accounts, msg.sender);
-    payable(msg.sender).transfer(depositRequirement);
+    (bool callSuccess, ) = payable(msg.sender).call{value: depositRequirement}("");
+    require(callSuccess, "Transfer failed");
     emit DepositWithdrawn(msg.sender);
   }
 
@@ -96,7 +97,8 @@ contract DamageDeposit is Ownable {
       revert AddressNotRegistered();
     // Remove the account and send the deposit to the admin
     EnumerableMap.remove(accounts, account);
-    payable(owner()).transfer(depositRequirement);
+    (bool success, ) = payable(owner()).call{value: depositRequirement}("");
+    require(success, "Transfer failed");
     emit DepositConfiscated(account);
   }
 
@@ -107,7 +109,8 @@ contract DamageDeposit is Ownable {
       revert AddressNotRegistered();
     // Remove the account and refund the deposit to the depositing address
     EnumerableMap.remove(accounts, account);
-    payable(account).transfer(depositRequirement);
+    (bool success, ) = payable(account).call{value: depositRequirement}("");
+    require(success, "Transfer failed");
     emit DepositWithdrawn(account);
   }
 
