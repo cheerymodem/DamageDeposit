@@ -5,8 +5,8 @@ const { BN, expectEvent, expectRevert} = require('@openzeppelin/test-helpers');
 
   async function deployContract(){
     const DD = await hre.ethers.getContractFactory("DamageDeposit");
-    let dd = await DD.deploy(10,hre.ethers.utils.parseEther("1"));
-    [owner, otherAccount] = await ethers.getSigners();
+    const dd = await DD.deploy(10,hre.ethers.utils.parseEther("1"));
+    const [owner, otherAccount] = await hre.ethers.getSigners();
     return [owner,otherAccount,dd];
   }
 
@@ -52,6 +52,7 @@ const { BN, expectEvent, expectRevert} = require('@openzeppelin/test-helpers');
     it("Testing deposit with account having existing deposit", async () => {
       try{
         await dd.connect(otherAccount).deposit({value: depositRequirement});
+        assert.fail('Expected an error to be thrown');
       }
       catch(e){
         assert.include(e.message,'DepositAlreadyPresent');
@@ -96,7 +97,7 @@ const { BN, expectEvent, expectRevert} = require('@openzeppelin/test-helpers');
         assert.fail('Expected an error to be thrown');
       }
       catch(e){
-        assert.include(e.message,'WithdrawalNotIntiated');
+        assert.include(e.message,'WithdrawalNotInitiated');
       }
     });
 
@@ -183,6 +184,7 @@ const { BN, expectEvent, expectRevert} = require('@openzeppelin/test-helpers');
     let owner;
     let otherAccount;
     let withdrawTime;
+    let ret;
 
     before("Deploy new contract", async function () {
       [owner,otherAccount,dd] = await deployContract();
@@ -194,12 +196,12 @@ const { BN, expectEvent, expectRevert} = require('@openzeppelin/test-helpers');
       tx = await dd.connect(otherAccount).deposit({value: depositRequirement});
       tx = await tx.wait();
       assert.equal(tx.events[0].event,'DepositMade');
-      before = hre.ethers.BigNumber.from(await otherAccount.getBalance());
+      const balanceBefore = hre.ethers.BigNumber.from(await otherAccount.getBalance());
       tx = await dd.privWithdraw(otherAccount.address);
       tx = await tx.wait();
       assert.equal(tx.events[0].event,'DepositWithdrawn');
-      after = hre.ethers.BigNumber.from(await otherAccount.getBalance());
-      assert.isTrue((before.add(depositRequirement)).eq(after));
+      const balanceAfter = hre.ethers.BigNumber.from(await otherAccount.getBalance());
+      assert.isTrue((balanceBefore.add(depositRequirement)).eq(balanceAfter));
     });
 
     it("Testing releasing account funds early for account that doesn't exist", async () => {
@@ -298,6 +300,7 @@ describe("End to end test",function (accounts) {
   let owner;
   let otherAccount;
   let withdrawTime;
+  let ret;
 
   before("Deploy new contract", async function () {
     [owner,otherAccount,dd] = await deployContract();
