@@ -24,21 +24,31 @@ This project uses **pnpm**. A `.npmrc` pins `node-linker=hoisted` so Hardhat plu
 
 ## Architecture
 
-**`contracts/damageDeposit.sol`** — the entire on-chain logic, a single `DamageDeposit` contract extending OpenZeppelin `Ownable`.
+The on-chain logic is split across an abstract base plus two concrete variants that differ only in how value moves in and out:
 
+**`contracts/DamageDepositBase.sol`** — abstract contract (extends OpenZeppelin `Ownable`) holding the entire shared lifecycle. The custom errors are declared at file scope here. It defines two `internal virtual` hooks the variants implement: `_receiveDeposit()` (pull/validate the deposit) and `_sendDeposit(address to)` (pay it out). The shared `_deposit()` applies effects (map write + `DepositMade`) **before** calling `_receiveDeposit()`, so a token transfer hook can't re-enter and register twice.
+
+**`contracts/damageDeposit.sol`** — `DamageDeposit`, the native-ETH variant. `deposit()` is `payable`; `_receiveDeposit()` reverts unless `msg.value == depositRequirement`; `_sendDeposit()` uses the low-level `.call{value:}` pattern with a `require` on success.
+
+**`contracts/DamageDepositERC20.sol`** — `DamageDepositERC20`, the ERC-20/USDC variant. Constructor also takes an `immutable IERC20 token`. `deposit()` is non-payable and requires a prior `approve`; `_receiveDeposit()` does `token.safeTransferFrom`, `_sendDeposit()` does `token.safeTransfer` (OpenZeppelin `SafeERC20`). Assumes a non-fee, non-rebasing token (USDC fits); `depositRequirement` is in the token's base units (USDC = 6 decimals).
+
+**`contracts/mocks/MockUSDC.sol`** — a 6-decimal ERC-20 with a public `mint`, used only by the ERC-20 tests.
+
+Shared design notes (apply to both variants):
 - Account state lives in one `EnumerableMap.AddressToUintMap accounts`. The mapped `uint256` value is overloaded as the deposit's lifecycle state:
   - **not in map** → no deposit
   - **value `0`** → active deposit, withdrawal not yet initiated
   - **value > 0** → withdrawal initiated; the value is the unix timestamp at which withdrawal becomes allowed (`block.timestamp + withdrawPeriod`)
-- `withdrawPeriod` and `depositRequirement` are `immutable`, set once in the constructor (seconds and wei respectively). The deposit amount is fixed — `deposit()` reverts unless `msg.value` exactly equals `depositRequirement`.
+- `withdrawPeriod` and `depositRequirement` are `immutable`, set once in the constructor. The deposit amount is fixed.
 - Lifecycle: `deposit()` → `initiateWithdraw()` (starts the timelock) → `withdrawDeposit()` (only after the timelock passes). The timelock exists so operators have a window to detect abuse before funds leave.
 - Admin (owner-only) functions: `confiscate()` (sends the deposit to the owner), `privWithdraw()` (refunds a user early), `pause()`/`unpause()` (block new deposits via the `paused` flag).
 - `checkDeposit(address)` returns `(bool present, uint256 withdrawTimestamp)` — this two-value return is the off-chain integration point services call to gate content. The boolean and the timestamp together encode the three states above.
-- All outflows use the low-level `.call{value:}` pattern (recently migrated from `transfer`) with a `require` on success.
 
-**`test/damageDeposit.test.js`** — Mocha/Chai tests grouped into `Deposit functionality`, `Withdrawal functionality`, `Admin functions`, and `End to end test`. Each `describe` redeploys a fresh contract in `before()` (deposit `1 ETH`, withdraw period `10s`). Time-dependent paths use `@nomicfoundation/hardhat-network-helpers`'s `time.increase()` to fast-forward past the timelock. Reverts are asserted by string-matching the custom error name in the caught exception message.
+**`test/damageDeposit.test.js`** — Mocha/Chai tests for the ETH variant, grouped into `Deposit functionality`, `Withdrawal functionality`, `Admin functions`, and `End to end test`. Each `describe` redeploys a fresh contract in `before()` (deposit `1 ETH`, withdraw period `10s`). Time-dependent paths use `@nomicfoundation/hardhat-network-helpers`'s `time.increase()` to fast-forward past the timelock. Reverts are asserted by string-matching the custom error name in the caught exception message.
 
-**`scripts/deploy.js`** — deploys with `withdrawPeriod`/`depositRequirement` hardcoded as top-of-file constants. Edit these before deploying.
+**`test/damageDepositERC20.test.js`** — same style for the ERC-20 variant: deploys `MockUSDC` (1 USDC = `1000000`) alongside `DamageDepositERC20`, mints to the signers, and exercises the approve→deposit flow plus token-balance movement through every value path. Note: in the payout paths the token's `Transfer` log precedes the contract's own event, so these tests find events by name (`tx.events.some(e => e.event === ...)`) rather than indexing `tx.events[0]`.
+
+**`scripts/deploy.js`** (ETH) and **`scripts/deployERC20.js`** (token, also takes a token address) — deploy with `withdrawPeriod`/`depositRequirement` hardcoded as top-of-file constants. Edit these before deploying.
 
 **`interface/`** — a dependency-free static demo (`index.html` + `index.js` + bundled `ethers.esm.js`). `index.js` embeds the contract ABI inline, connects via an injected `window.ethereum` wallet, and shows admin-only buttons when the connected signer matches `contract.owner()`. The user enters a deployed contract address in the UI; nothing is hardcoded.
 

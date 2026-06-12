@@ -9,9 +9,23 @@ can confiscate in response to abuse.
 
 The only way to defeat spam is to raise the cost of spamming. This can be done two ways: increasing the work needed to submit content (captcha, email verification, IP blacklisting, ID verification) or directly using Damage Deposit. As methods like CAPTCHA increasingly fail due to advancements in ML-based solving and [solving farms](https://en.wikipedia.org/wiki/CAPTCHA#Human_labor), user privacy is constantly [eroded](https://en.wikipedia.org/wiki/ReCAPTCHA#Privacy) as identifying humans from bots becomes increasingly difficult. DamageDeposit provides an alternative by directly increasing the cost of spamming while reducing the impact on legitimate users, using an Ethereum smart contract to collect a deposit that can be confiscated by the service operator in cases of abuse. This also allows spam removal to become a profitable undertaking rather than a financial burden.
 
+## Deposit asset: ETH or an ERC-20 (USDC)
+
+Two variants share the same lifecycle logic (defined in
+[contracts/DamageDepositBase.sol](contracts/DamageDepositBase.sol)):
+
+- **`DamageDeposit`** — deposits are made in native ETH, sent as the transaction
+  value. Deploy with [scripts/deploy.js](scripts/deploy.js).
+- **`DamageDepositERC20`** — deposits are made in an ERC-20 token such as USDC.
+  The depositor must `approve` the contract for the deposit amount first, then
+  call `deposit()` (no value is sent). Deploy with
+  [scripts/deployERC20.js](scripts/deployERC20.js), which also takes the token
+  address. Amounts are in the token's base units — USDC has **6 decimals**, so
+  1 USDC is `1000000`.
+
 ## Usage
 ### Configuration
-Edit [scripts/deploy.js](scripts/deploy.js) with the appropriate contract values for deposit amount and withdrawal hold period. Withdrawal period should be set long enough that abuse can be detected before the user withdraws the deposit.
+Edit [scripts/deploy.js](scripts/deploy.js) (ETH) or [scripts/deployERC20.js](scripts/deployERC20.js) (token) with the appropriate contract values for deposit amount and withdrawal hold period. Withdrawal period should be set long enough that abuse can be detected before the user withdraws the deposit.
 ```
 const withdrawPeriod = 5;
 const depositRequirement = "0.001";
@@ -64,6 +78,8 @@ pnpm dlx http-server
 The page will be available at http://localhost:8080/. You will need a browser-connected Ethereum wallet ([Frame](https://frame.sh/), [Metamask](https://metamask.io/) etc) to sign the transactions.
 
 The interface is intentionally dependency-free: it bundles a copy of `ethers.esm.js` directly rather than pulling it from a package manager or CDN, so it can be served as static files with no build step.
+
+The bundled demo targets the ETH variant (`DamageDeposit`). The `DamageDepositERC20` variant has a different ABI and needs the depositor to `approve` the contract before depositing, so it isn't wired into this demo yet.
 
 ### Basic Workflow
 1. User deposits Ethereum to the contract.
