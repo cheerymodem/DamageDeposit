@@ -37,6 +37,18 @@ const depositRequirement = "0.001";
 ### Running the tests
     pnpm hardhat test
 
+### Local testing with the demo interface
+To exercise the interface end to end against a local node, start a node and run
+the setup script, which deploys both contract variants plus a mock USDC token
+and mints test balances:
+
+    pnpm hardhat node                                       # terminal 1
+    pnpm hardhat run scripts/setupLocal.js --network localhost  # terminal 2
+
+The script prints the deployed contract addresses. Point MetaMask at
+`http://127.0.0.1:8545` (chain id `31337`), import one of the node's accounts by
+private key, then paste a contract address into the interface to connect.
+
 ### Deploying The Contract:
 To deploy the smart contract to the Ethereum network you need a network provider, either an RPC provider like Infura or Alchemy (both have free options) or your own Ethereum node. You will also need enough Ethereum to cover gas fees for deploying the contract.  
 

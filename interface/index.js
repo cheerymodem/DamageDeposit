@@ -296,12 +296,46 @@ const abi = [
     ],
     "stateMutability": "view",
     "type": "function"
+  },
+  {
+    "inputs": [],
+    "name": "token",
+    "outputs": [
+      {
+        "internalType": "address",
+        "name": "",
+        "type": "address"
+      }
+    ],
+    "stateMutability": "view",
+    "type": "function"
   }
 ];
+
+// Minimal ERC-20 ABI for the token used by the DamageDepositERC20 variant.
+const erc20Abi = [
+  "function decimals() view returns (uint8)",
+  "function symbol() view returns (string)",
+  "function balanceOf(address) view returns (uint256)",
+  "function allowance(address owner, address spender) view returns (uint256)",
+  "function approve(address spender, uint256 amount) returns (bool)"
+];
+
+// Deposit-asset state, set on connect. Defaults describe the native-ETH variant.
+let isErc20 = false;
+let token;
+let assetDecimals = 18;
+let assetSymbol = "ETH";
+
+// Format a base-unit amount using the connected deposit asset's decimals.
+function formatAmount(amount) {
+  return window.ethers.utils.formatUnits(amount, assetDecimals);
+}
 let signer;
 let provider;
 let contract;
 let myAddress;
+let isOwner = false;
 
 
 const connectWalletBtn = document.getElementById("connect-wallet-btn");
@@ -319,6 +353,8 @@ const statusEl = document.getElementById("status");
 const outputEl = document.getElementById("output");
 const adminwithdrawBtn = document.getElementById("adminwithdraw-btn");
 const contractstatusBtn = document.getElementById("contractstatus-btn");
+const contractTypeEl = document.getElementById("contract-type");
+const adminSectionEl = document.getElementById("admin-section");
 const adminButtons = [pauseBtn,unpauseBtn,confiscateBtn,adminwithdrawBtn,checkBtn];
 const userButtons = [depositBtn,withdrawBtn,initiateBtn,contractstatusBtn];
 // Add event listeners button
@@ -359,20 +395,32 @@ async function checkFunction() {
 
 // Define the deposit function
 async function depositFunction() {
-  const amount = await contract.depositRequirement();
-  outputEl.innerText = "deposit requirement: " + window.ethers.utils.formatEther(amount) + " ETH";
+  let amount;
   try{
-    const tx = await contract.deposit({value: amount});
+    amount = await contract.depositRequirement();
+    if (isErc20){
+      // ERC-20 deposits are pulled via transferFrom, so the token must be
+      // approved for at least the deposit amount first.
+      const allowance = await token.allowance(myAddress, contract.address);
+      if (allowance.lt(amount)){
+        outputEl.innerText = "Approving " + formatAmount(amount) + " " + assetSymbol + "…";
+        const approveTx = await token.approve(contract.address, amount);
+        await approveTx.wait();
+      }
+    }
+    outputEl.innerText = "Depositing " + formatAmount(amount) + " " + assetSymbol + "…";
+    const tx = await contract.deposit(isErc20 ? {} : {value: amount});
     await tx.wait();
+    outputEl.innerText = "Deposit of " + formatAmount(amount) + " " + assetSymbol + " complete";
   } catch (error){
     if (await contract.paused()){
       outputEl.innerText = ("Error making deposit, the contract is blocking new deposits.");
     }
-    else if (amount.gt(await provider.getBalance(myAddress))){
-      outputEl.innerText = ("Error making deposit, wallet balance insufficient.");
-    }
     else if ((error.reason || error.message || "").includes("DepositAlreadyPresent")){
       outputEl.innerText = ("Error making deposit, address has existing deposit.");
+    }
+    else if (amount && (await depositBalance()).lt(amount)){
+      outputEl.innerText = ("Error making deposit, wallet balance insufficient.");
     }
     else {
       outputEl.innerText = ("Error making deposit ");
@@ -380,6 +428,14 @@ async function depositFunction() {
     }
   }
   checkContract();
+}
+
+// Current balance of the connected wallet in the deposit asset (ETH or token).
+async function depositBalance() {
+  if (isErc20){
+    return token.balanceOf(myAddress);
+  }
+  return provider.getBalance(myAddress);
 }
 
 // Define the admin withdraw function
@@ -456,12 +512,19 @@ async function pauseFunction() {
 // Collect the status from the deployed contract
 async function checkContract() {
   try {
-    if (await contract.paused()){
-      var text = "Deposits paused\n"
+    let text;
+    const paused = await contract.paused();
+    if (paused){
+      text = "Deposits paused\n"
     } else{
       text = "Deposits can be made\n"
     }
-    text += ("Deposit requirement: " + window.ethers.utils.formatEther(await contract.depositRequirement()) + " ETH\n");
+    // Show only the pause/unpause control that applies to the current state
+    if (isOwner){
+      pauseBtn.hidden = paused;
+      unpauseBtn.hidden = !paused;
+    }
+    text += ("Deposit requirement: " + formatAmount(await contract.depositRequirement()) + " " + assetSymbol + "\n");
     const validStatus = await contract.checkDeposit(myAddress);
     if (validStatus[0] && validStatus[1] == 0){
       text += ("Account "+ myAddress + " has a valid deposit\n");
@@ -472,7 +535,7 @@ async function checkContract() {
     } else{
       text += ("Account "+ myAddress + " does not have a valid deposit\n");
     }
-    if (await contract.owner() == await signer.getAddress()){
+    if (isOwner){
       text += ("You are the contract owner.");
     }
     statusEl.innerText = text;
@@ -524,13 +587,42 @@ connectWalletBtn.addEventListener("click", async () => {
   }
   
   // Enable user function buttons
-  userButtons.forEach((el,i,a) => el.disabled = false);
+  // Show the connected wallet address (shortened)
+  walletAddressEl.textContent = myAddress.slice(0, 6) + "…" + myAddress.slice(-4);
+  walletAddressEl.title = myAddress;
+  walletAddressEl.hidden = false;
+
+  // Detect the deposit asset: the ERC-20 variant exposes a token() getter,
+  // the native-ETH variant does not.
+  isErc20 = false;
+  assetDecimals = 18;
+  assetSymbol = "ETH";
+  token = undefined;
+  try {
+    const tokenAddress = await contract.token();
+    token = new window.ethers.Contract(tokenAddress, erc20Abi, signer);
+    assetDecimals = await token.decimals();
+    assetSymbol = await token.symbol();
+    isErc20 = true;
+  } catch (e) {
+    // No token() getter — native-ETH variant, the defaults above apply.
+  }
+  // Build the badge with textContent so a hostile token symbol can't inject HTML
+  contractTypeEl.textContent = "Deposit asset: ";
+  const badge = document.createElement("span");
+  badge.className = "badge";
+  badge.textContent = isErc20 ? assetSymbol + " (ERC-20)" : "ETH";
+  contractTypeEl.appendChild(badge);
+  contractTypeEl.hidden = false;
+
+  userButtons.forEach((el) => el.disabled = false);
   outputEl.innerText = "Connected";
-  // Check for owner permissions and unhide admin buttons
-  if (await contract.owner() == await signer.getAddress()){
-    adminButtons.forEach((el,i,a) => 
-      el.hidden = false
-    )
+
+  // Check for owner permissions and reveal the admin controls
+  isOwner = (await contract.owner()) == (await signer.getAddress());
+  if (isOwner){
+    adminSectionEl.hidden = false;
+    adminButtons.forEach((el) => el.hidden = false);
   }
   checkContract();
 })
