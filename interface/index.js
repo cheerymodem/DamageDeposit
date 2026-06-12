@@ -1,3 +1,8 @@
+import { ethers } from './ethers.esm.js';
+// Expose ethers globally so the rest of this script can use window.ethers.
+// Done here (in an external module) rather than in an inline <script> so the
+// page can run under a strict Content-Security-Policy with no inline scripts.
+window.ethers = ethers;
 
 const abi = [
   {
@@ -368,28 +373,43 @@ unpauseBtn.addEventListener("click", unpauseFunction);
 adminwithdrawBtn.addEventListener("click", adminWithdrawFunction);
 contractstatusBtn.addEventListener("click", checkContract);
 
+// Validate the account-address input shared by the admin actions. Returns the
+// trimmed address, or null (after showing a message) if missing/invalid. ethers
+// would reject a malformed address at encode time anyway; this just fails early
+// with a clear message instead of a vague caught error.
+function getAccountInput() {
+  const value = inputEl.value.trim();
+  if (!value) {
+    outputEl.innerText = "Enter an account address.";
+    return null;
+  }
+  if (!window.ethers.utils.isAddress(value)) {
+    outputEl.innerText = "That doesn't look like a valid account address.";
+    return null;
+  }
+  return value;
+}
+
 // Define the deposit checking function
 async function checkFunction() {
-  if (inputEl.value) {
-    try{
-      const validStatus = await contract.checkDeposit(inputEl.value);
-      if (validStatus[0] && validStatus[1] == 0){
-        outputEl.innerText = ("Account "+ inputEl.value + " has a valid deposit\n");
-      } else if (validStatus[1] > 0){
-        const date = new Date(validStatus[1].toNumber() * 1000).toLocaleString();
-        outputEl.innerText = ("Account "+ inputEl.value + " is waiting for withdrawal at "+date+" GMT\n");
-        // TODO: display this using the user's local time zone
-      } else{
-        outputEl.innerText = ("Account "+ inputEl.value + " does not have a valid deposit\n");
-      }
+  const account = getAccountInput();
+  if (!account) { return; }
+  try{
+    const validStatus = await contract.checkDeposit(account);
+    if (validStatus[0] && validStatus[1] == 0){
+      outputEl.innerText = ("Account "+ account + " has a valid deposit\n");
+    } else if (validStatus[1] > 0){
+      const date = new Date(validStatus[1].toNumber() * 1000).toLocaleString();
+      outputEl.innerText = ("Account "+ account + " is waiting for withdrawal at "+date+" GMT\n");
+      // TODO: display this using the user's local time zone
+    } else{
+      outputEl.innerText = ("Account "+ account + " does not have a valid deposit\n");
     }
-      catch(e){ 
-        outputEl.innerText = ("Error checking deposit, verify contract and user address");  
-        console.log(e);
-      }
-  } else {
-    outputEl.innerText = ("Must specify a user address to check.")
   }
+    catch(e){
+      outputEl.innerText = ("Error checking deposit, verify contract and user address");
+      console.log(e);
+    }
   checkContract();
 }
 
@@ -440,8 +460,10 @@ async function depositBalance() {
 
 // Define the admin withdraw function
 async function adminWithdrawFunction() {
+  const account = getAccountInput();
+  if (!account) { return; }
   try {
-    const tx = await contract.privWithdraw(inputEl.value);
+    const tx = await contract.privWithdraw(account);
     await tx.wait();
     outputEl.innerText = "Admin withdrawal completed";
   } catch (error) {
@@ -466,12 +488,10 @@ async function withdrawFunction() {
 
 // Define the confiscate deposit function
 async function confiscateFunction() {
-  if (!inputEl.value){
-    outputEl.innerText = "Enter address to confiscate from";
-    return;
-  }
+  const account = getAccountInput();
+  if (!account) { return; }
   try {
-    const tx = await contract.confiscate(inputEl.value);
+    const tx = await contract.confiscate(account);
     await tx.wait();
     outputEl.innerText = "Confiscation complete";
   } catch (error) {

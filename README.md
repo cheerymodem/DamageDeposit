@@ -91,7 +91,20 @@ The page will be available at http://localhost:8080/. You will need a browser-co
 
 The interface is intentionally dependency-free: it bundles a copy of `ethers.esm.js` directly rather than pulling it from a package manager or CDN, so it can be served as static files with no build step.
 
-The bundled demo targets the ETH variant (`DamageDeposit`). The `DamageDepositERC20` variant has a different ABI and needs the depositor to `approve` the contract before depositing, so it isn't wired into this demo yet.
+It auto-detects which variant a contract is (ETH vs. ERC-20) by probing for a `token()` getter, formats amounts using the token's decimals/symbol, and runs the required `approve` step before an ERC-20 deposit. You can link to it with a contract preselected via `?contract=0x…`.
+
+### Hosting & security
+The interface is a **demo**, and it is a fully static, client-side app: there is no backend, and **no private keys ever touch it** (every transaction is signed in the user's wallet, and the contract enforces all rules — `onlyOwner`, the timelock — on-chain). So a server compromise cannot leak keys or move deposits.
+
+The real risk in hosting it for others is **frontend integrity**: if an attacker can alter the served files (a compromised host, a man-in-the-middle, a tampered CDN), they can inject script that prompts users to sign a malicious transaction. Protect *that*, not server-side data:
+
+- **Serve over HTTPS, with HSTS.** Over plain HTTP, a network attacker can rewrite the page and drain wallets. This is the single most important control.
+- **Keep dependencies self-hosted.** `ethers.esm.js` is bundled rather than loaded from a CDN, which removes a third-party tamper point. If you ever switch to a CDN, pin it with Subresource Integrity.
+- **Content-Security-Policy.** `index.html` ships a strict `<meta>` CSP (`script-src 'self'`, no inline, no `eval`). [`interface/_headers`](interface/_headers) sets the same as real headers for hosts that support it (Netlify/Cloudflare Pages), plus the header-only protections a meta tag can't provide: `frame-ancestors 'none'` / `X-Frame-Options: DENY` (anti-clickjacking), `X-Content-Type-Options: nosniff`, and HSTS. For nginx/Caddy, translate these into `add_header` directives.
+- **Use a real static host, not `http-server`.** `pnpm dlx http-server` is for local development only.
+- **Contract-trust caveat.** The panel lets users enter (or be linked to, via `?contract=`) *any* address. Make clear which contract(s) your deployment is meant for, so users aren't steered to a hostile look-alike.
+
+A note on XSS: every place user-supplied or on-chain text reaches the page uses `textContent`/`innerText`, never `innerHTML`, so input can't inject executable markup. Keep it that way — switching any of those to `innerHTML` would reopen the hole.
 
 ### Basic Workflow
 1. User deposits Ethereum to the contract.

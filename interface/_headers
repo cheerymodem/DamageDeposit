@@ -1,0 +1,11 @@
+# Security headers for static hosts that read a _headers file (Netlify,
+# Cloudflare Pages, etc.). These set REAL HTTP response headers, which is the
+# proper home for directives a <meta> CSP can't express (frame-ancestors) or
+# that browsers ignore in meta (HSTS). For nginx/Caddy, translate these into
+# add_header / header directives. See the README "Hosting & security" section.
+/*
+  Content-Security-Policy: default-src 'none'; script-src 'self'; style-src 'self'; img-src 'self'; connect-src 'self'; font-src 'self'; object-src 'none'; base-uri 'none'; form-action 'none'; frame-ancestors 'none'
+  X-Frame-Options: DENY
+  X-Content-Type-Options: nosniff
+  Referrer-Policy: no-referrer
+  Strict-Transport-Security: max-age=63072000; includeSubDomains; preload
