@@ -4,7 +4,7 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 ## Overview
 
-DamageDeposit is an Ethereum smart contract anti-spam mechanism. Instead of raising the *work* cost of submitting content (CAPTCHA, email/ID verification), it raises the *financial* cost: users post a refundable ETH deposit, and a service operator can confiscate it in response to abuse. The repo is a Hardhat project containing the Solidity contract, its tests, a deploy script, and a static browser demo interface.
+DamageDeposit is an Ethereum smart contract anti-spam mechanism. Instead of raising the *work* cost of submitting content (CAPTCHA, email/ID verification), it raises the *financial* cost: users post a refundable deposit (ETH or an ERC-20 such as USDC), and a service operator can confiscate it in response to abuse. The repo is a Hardhat project containing the Solidity contracts, their tests, deploy scripts, and a static browser demo interface.
 
 ## Commands
 
@@ -15,10 +15,13 @@ pnpm hardhat test                              # run the full Mocha/Chai test su
 pnpm hardhat test --grep "End to end"          # run a single describe block / test by name
 pnpm hardhat run scripts/deploy.js --network sepolia  # deploy (network must be filled in, see below)
 
+pnpm hardhat node                              # run a local node in a separate terminal
+pnpm hardhat run scripts/setupLocal.js --network localhost  # deploy both variants + mock USDC, mint test balances
+
 cd interface && pnpm dlx http-server           # serve the demo UI at http://localhost:8080
 ```
 
-Note: `pnpm test` is **not** wired up (package.json still has the default placeholder that exits 1). Always use `pnpm hardhat test`.
+Note: `pnpm test` and `pnpm compile` are wired to `hardhat test` / `hardhat compile`, so they're equivalent to the `pnpm hardhat …` forms above.
 
 This project uses **pnpm**. A `.npmrc` pins `node-linker=hoisted` so Hardhat plugins (which expect a flat `node_modules`) resolve correctly under pnpm.
 
@@ -48,12 +51,17 @@ Shared design notes (apply to both variants):
 
 **`test/damageDepositERC20.test.js`** — same style for the ERC-20 variant: deploys `MockUSDC` (1 USDC = `1000000`) alongside `DamageDepositERC20`, mints to the signers, and exercises the approve→deposit flow plus token-balance movement through every value path. Note: in the payout paths the token's `Transfer` log precedes the contract's own event, so these tests find events by name (`tx.events.some(e => e.event === ...)`) rather than indexing `tx.events[0]`.
 
-**`scripts/deploy.js`** (ETH) and **`scripts/deployERC20.js`** (token, also takes a token address) — deploy with `withdrawPeriod`/`depositRequirement` hardcoded as top-of-file constants. Edit these before deploying.
+**`scripts/deploy.js`** (ETH) and **`scripts/deployERC20.js`** (token, also takes a token address) — deploy with `withdrawPeriod`/`depositRequirement` hardcoded as top-of-file constants. Edit these before deploying. **`scripts/setupLocal.js`** deploys both variants plus `MockUSDC` and mints test balances against a local node — a one-command setup for exercising the interface end to end.
 
-**`interface/`** — a dependency-free static demo (`index.html` + `index.js` + bundled `ethers.esm.js`). `index.js` embeds the contract ABI inline, connects via an injected `window.ethereum` wallet, and shows admin-only buttons when the connected signer matches `contract.owner()`. The user enters a deployed contract address in the UI; nothing is hardcoded.
+**`interface/`** — a dependency-free static demo: `index.html`, `index.js`, `style.css`, a bundled `ethers.esm.js`, and a `_headers` file (production security headers). `index.js` embeds two hand-maintained ABIs — the DamageDeposit contract ABI (shared by both variants, with a `token()` entry) and a minimal ERC-20 ABI — and connects via an injected `window.ethereum` wallet. Notable behavior:
+- Connecting the wallet and entering a contract address work in either order (`connectWallet()` vs `loadContract()`); the address can also be preselected via a `?contract=0x…` URL param.
+- On load it **auto-detects the variant** by probing `token()` (ETH vs. ERC-20), formats amounts by the asset's decimals/symbol, and runs the `approve` step before an ERC-20 deposit.
+- Action buttons reflect the connected wallet's deposit state and the `paused` flag; admin-only buttons appear when the signer matches `contract.owner()`.
+- Nothing is hardcoded — the user supplies the contract address. See the README "Hosting & security" section and the CSP gotcha below.
 
 ## Important Gotchas
 
-- **The interface ABI must mirror the deployed contract exactly.** `interface/index.js` embeds a hand-maintained copy of the contract ABI (including custom error names, which determine the 4-byte selectors used to decode reverts). If you rename a function or error in the contract, update this ABI and any string-matched assertions in the test in lockstep, or the UI will fail to decode reverts and tests will silently stop matching.
+- **The interface ABIs must mirror the deployed contracts.** `interface/index.js` embeds a hand-maintained copy of the DamageDeposit ABI (including custom error names, whose 4-byte selectors decode reverts) plus a minimal ERC-20 ABI. The one contract ABI serves both variants — `deposit()` is listed as `payable` and simply called with no value for the ERC-20 variant — and includes the `token()` entry used to auto-detect the variant. If you rename a function or error in the contract, update this ABI and any string-matched assertions in the tests in lockstep, or the UI will fail to decode reverts and tests will silently stop matching.
+- **The interface runs under a strict Content-Security-Policy** (a `<meta>` tag in `index.html`, mirrored as real headers in `interface/_headers`). It forbids inline scripts, inline event handlers, inline styles, and `eval`. Don't add `<script>…</script>`/`onclick=`/`style=` — load JS from `index.js` and CSS from `style.css`. This is why `window.ethers` is assigned via an `import` in `index.js` rather than an inline script.
 - **`hardhat.config.js` ships with empty `sepolia`/`mainnet` network entries** (blank `url` and `accounts`). Deployment requires filling in an RPC URL and a wallet private key there. These hold secrets — do not commit real values.
 - The Solidity version pinned in `hardhat.config.js` is `0.8.18`; the contract's pragma is the looser `>=0.4.22 <0.9.0`.
