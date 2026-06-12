@@ -1,0 +1,11 @@
+# pnpm 11 blocks dependency build scripts by default. Allow only the native
+# addons Hardhat's toolchain actually uses; the web3/es5-ext ones are unused.
+allowBuilds:
+  bufferutil: true
+  utf-8-validate: true
+  keccak: true
+  secp256k1: true
+  es5-ext: false
+  web3: false
+  web3-bzz: false
+  web3-shh: false

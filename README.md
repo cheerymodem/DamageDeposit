@@ -10,8 +10,8 @@ const withdrawPeriod = 5;
 const depositRequirement = "0.001";
 ```
 ### Compiling
-    npm install
-    npx hardhat compile
+    pnpm install
+    pnpm hardhat compile
 
 ### Deploying The Contract:
 To deploy the smart contract to the Ethereum network you need a network provider, either an RPC provider like Infura or Alchemy (both have free options) or your own Ethereum node. You will also need enough Ethereum to cover gas fees for deploying the contract.  
@@ -29,7 +29,7 @@ The owner of the contract (private key) will have access to the admin functions,
 Other methods of configuring the connected wallet can be found [here](https://hardhat.org/hardhat-runner/docs/config#hd-wallet-config).
 
 Deploy the contract  
-`npx hardhat run scripts/deploy.js --network mainnet`
+`pnpm hardhat run scripts/deploy.js --network mainnet`
 
 ### Deploying to Test Network
 The contract can also be deployed to the Sepolia test network to test live functionality without using real Ethereum. Complete the Sepolia network config in hardhat.config.js with a Sepolia provider (Infura, Alchemy) and wallet containing [Sepolia ETH](https://sepolia-faucet.pk910.de/):
@@ -43,13 +43,13 @@ The contract can also be deployed to the Sepolia test network to test live funct
 
 Then deploy the contract:
 
-`npx hardhat run scripts/deploy.js --network sepolia`
+`pnpm hardhat run scripts/deploy.js --network sepolia`
 
 ### Interacting with DamageDeposit
 A demo interface is included in the [interface/](/interface) directory. After deploying your contract, you can load the interface to interact with it: 
 ``` 
 cd interface  
-npx http-server
+pnpm dlx http-server
 ```
 The page will be available at http://localhost:8080/. You will need a browser-connected Ethereum wallet ([Frame](https://frame.sh/), [Metamask](https://metamask.io/) etc) to sign the transactions.
 
