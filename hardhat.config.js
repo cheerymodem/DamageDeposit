@@ -9,11 +9,11 @@ module.exports = {
   networks: {
     sepolia:{
       url: "",
-      accounts: [""]
+      accounts: []
     },
     mainnet:{
       url:"",
-      accounts: [""]
+      accounts: []
     }
   },
 };
