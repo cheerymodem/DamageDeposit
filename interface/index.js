@@ -564,40 +564,55 @@ async function unpauseFunction() {
   checkContract();
 }
 
-// Add an event listener to the connect wallet button
-connectWalletBtn.addEventListener("click", async () => {
-  // Check if the browser has an Ethereum provider (MetaMask, etc.) installed
-  if (typeof window.ethereum !== "undefined") {
-    try {
-      // Request access to the user's Ethereum account
-      await window.ethereum.request({ method: "eth_requestAccounts" });
-
-      // Create a new ethers.js provider using the user's Ethereum provider
-      const provider = new window.ethers.providers.Web3Provider(window.ethereum);
-
-      // Get the user's Ethereum address
-      const accounts = await provider.listAccounts();
-      myAddress = accounts[0];
-    } catch (e) { outputEl.innerText = ("wallet connect error"+e); return;}
+// Connect the browser wallet: request accounts and set up provider/signer.
+// Does not touch the contract — that happens in loadContract() once an
+// address is available, so the two steps work in either order.
+async function connectWallet() {
+  if (typeof window.ethereum === "undefined") {
+    outputEl.innerText = "No Ethereum wallet detected. Install MetaMask or similar.";
+    return false;
   }
-  // create the provider, signer from provider, and contract from signer
-  provider = new window.ethers.providers.Web3Provider(window.ethereum);
-  signer = provider.getSigner();
-
-  contract = new window.ethers.Contract(addressEl.value, abi, signer);
-  try{
-    const contractDeployed = await contract.deployed();
-  } catch (e){
-    console.log(e);
-    outputEl.innerText = "Contract not deployed!";
-    return;
+  try {
+    await window.ethereum.request({ method: "eth_requestAccounts" });
+    provider = new window.ethers.providers.Web3Provider(window.ethereum);
+    signer = provider.getSigner();
+    myAddress = await signer.getAddress();
+  } catch (e) {
+    outputEl.innerText = ("Wallet connect error: " + e);
+    return false;
   }
-  
-  // Enable user function buttons
   // Show the connected wallet address (shortened)
   walletAddressEl.textContent = myAddress.slice(0, 6) + "…" + myAddress.slice(-4);
   walletAddressEl.title = myAddress;
   walletAddressEl.hidden = false;
+  return true;
+}
+
+// Load the contract at the entered address: detect the variant, enable the
+// controls, and read current state. Requires a connected wallet.
+async function loadContract() {
+  if (!signer) {
+    outputEl.innerText = "Connect a wallet first.";
+    return;
+  }
+  const address = addressEl.value.trim();
+  if (!address) {
+    outputEl.innerText = "Enter a contract address to load.";
+    return;
+  }
+  if (!window.ethers.utils.isAddress(address)) {
+    outputEl.innerText = "That doesn't look like a valid contract address.";
+    return;
+  }
+
+  contract = new window.ethers.Contract(address, abi, signer);
+  try {
+    await contract.deployed();
+  } catch (e) {
+    console.log(e);
+    outputEl.innerText = "No contract found at that address on this network.";
+    return;
+  }
 
   // Detect the deposit asset: the ERC-20 variant exposes a token() getter,
   // the native-ETH variant does not.
@@ -625,11 +640,35 @@ connectWalletBtn.addEventListener("click", async () => {
   userButtons.forEach((el) => el.disabled = false);
   outputEl.innerText = "Connected";
 
-  // Check for owner permissions and reveal the admin controls
+  // Reveal the admin controls only to the contract owner (re-evaluated on
+  // every load, so switching to a contract you don't own hides them again)
   isOwner = (await contract.owner()) == (await signer.getAddress());
-  if (isOwner){
-    adminSectionEl.hidden = false;
-    adminButtons.forEach((el) => el.hidden = false);
-  }
+  adminSectionEl.hidden = !isOwner;
+  adminButtons.forEach((el) => el.hidden = !isOwner);
+
   checkContract();
-})
+}
+
+// Connect wallet, then load the contract if an address is already entered.
+connectWalletBtn.addEventListener("click", async () => {
+  const connected = await connectWallet();
+  if (connected) {
+    await loadContract();
+  }
+});
+
+// Re-load the contract whenever the address field changes, once a wallet is
+// connected — so connecting and entering the address work in any order.
+addressEl.addEventListener("change", () => {
+  if (signer) {
+    loadContract();
+  }
+});
+
+// Prefill the contract address from a ?contract=0x… (or ?address=0x…) URL
+// parameter, so the panel can be linked to with a contract preselected.
+const linkParams = new URLSearchParams(window.location.search);
+const linkedAddress = linkParams.get("contract") || linkParams.get("address");
+if (linkedAddress) {
+  addressEl.value = linkedAddress;
+}
