@@ -526,6 +526,13 @@ async function checkContract() {
     }
     text += ("Deposit requirement: " + formatAmount(await contract.depositRequirement()) + " " + assetSymbol + "\n");
     const validStatus = await contract.checkDeposit(myAddress);
+    // Enable only the actions valid for the wallet's current deposit state
+    const present = validStatus[0];
+    const initiated = present && validStatus[1] > 0;
+    const unlocked = initiated && validStatus[1].toNumber() <= Math.floor(Date.now() / 1000);
+    depositBtn.disabled = present || paused;
+    initiateBtn.disabled = !present || initiated;
+    withdrawBtn.disabled = !unlocked;
     if (validStatus[0] && validStatus[1] == 0){
       text += ("Account "+ myAddress + " has a valid deposit\n");
     } else if (validStatus[1] > 0){
