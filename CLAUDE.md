@@ -28,7 +28,7 @@ The on-chain logic is split across an abstract base plus two concrete variants t
 
 **`contracts/DamageDepositBase.sol`** — abstract contract (extends OpenZeppelin `Ownable`) holding the entire shared lifecycle. The custom errors are declared at file scope here. It defines two `internal virtual` hooks the variants implement: `_receiveDeposit()` (pull/validate the deposit) and `_sendDeposit(address to)` (pay it out). The shared `_deposit()` applies effects (map write + `DepositMade`) **before** calling `_receiveDeposit()`, so a token transfer hook can't re-enter and register twice.
 
-**`contracts/damageDeposit.sol`** — `DamageDeposit`, the native-ETH variant. `deposit()` is `payable`; `_receiveDeposit()` reverts unless `msg.value == depositRequirement`; `_sendDeposit()` uses the low-level `.call{value:}` pattern with a `require` on success.
+**`contracts/DamageDeposit.sol`** — `DamageDeposit`, the native-ETH variant. `deposit()` is `payable`; `_receiveDeposit()` reverts unless `msg.value == depositRequirement`; `_sendDeposit()` uses the low-level `.call{value:}` pattern with a `require` on success.
 
 **`contracts/DamageDepositERC20.sol`** — `DamageDepositERC20`, the ERC-20/USDC variant. Constructor also takes an `immutable IERC20 token`. `deposit()` is non-payable and requires a prior `approve`; `_receiveDeposit()` does `token.safeTransferFrom`, `_sendDeposit()` does `token.safeTransfer` (OpenZeppelin `SafeERC20`). Assumes a non-fee, non-rebasing token (USDC fits); `depositRequirement` is in the token's base units (USDC = 6 decimals).
 
