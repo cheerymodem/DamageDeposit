@@ -14,7 +14,7 @@
       </header>
 
       <section class="connect-row">
-        <button id="connect-wallet-btn" class="btn btn-primary">Connect Wallet</button>
+        <button id="connect-wallet-btn" class="btn btn-primary" title="Connect your browser wallet and load the contract at the address below">Connect Wallet</button>
         <span id="wallet-address" class="wallet-chip" hidden></span>
       </section>
 
@@ -30,12 +30,14 @@
       <section class="actions">
         <h2 class="actions-title">User actions</h2>
         <div class="btn-group">
-          <button id="deposit-btn" class="btn" disabled autocomplete="off">Deposit</button>
-          <button id="initiate-btn" class="btn" disabled autocomplete="off">Signal Withdrawal</button>
-          <button id="withdraw-btn" class="btn" disabled autocomplete="off">Withdraw</button>
-          <button id="contractstatus-btn" class="btn btn-ghost" disabled autocomplete="off">Refresh Status</button>
+          <button id="deposit-btn" class="btn" disabled autocomplete="off" title="Lock the required deposit to register your account">Deposit</button>
+          <button id="initiate-btn" class="btn" disabled autocomplete="off" title="Start the withdrawal timelock; you can withdraw once it elapses">Signal Withdrawal</button>
+          <button id="withdraw-btn" class="btn" disabled autocomplete="off" title="Reclaim your deposit after the timelock has elapsed">Withdraw</button>
+          <button id="contractstatus-btn" class="btn btn-ghost" disabled autocomplete="off" title="Re-read the contract's current state">Refresh Status</button>
         </div>
       </section>
+
+      <output id="output" class="message" aria-live="polite"></output>
 
       <section class="actions admin" id="admin-section" hidden>
         <h2 class="actions-title">Admin actions</h2>
@@ -44,15 +46,14 @@
           <input type="text" id="input" placeholder="0x…" autocomplete="off" />
         </label>
         <div class="btn-group">
-          <button id="check-btn" class="btn" hidden autocomplete="off">Check Account</button>
-          <button id="adminwithdraw-btn" class="btn" hidden autocomplete="off">Admin Withdraw</button>
-          <button id="pause-btn" class="btn" hidden autocomplete="off">Pause Deposits</button>
-          <button id="unpause-btn" class="btn" hidden autocomplete="off">Unpause Deposits</button>
-          <button id="confiscate-btn" class="btn btn-danger" hidden autocomplete="off">Confiscate Deposit</button>
+          <button id="check-btn" class="btn" hidden autocomplete="off" title="Look up the deposit status of the account address above">Check Account</button>
+          <button id="adminwithdraw-btn" class="btn" hidden autocomplete="off" title="Refund the account's deposit early, back to the depositor">Admin Withdraw</button>
+          <button id="pause-btn" class="btn" hidden autocomplete="off" title="Block new deposits to the contract">Pause Deposits</button>
+          <button id="unpause-btn" class="btn" hidden autocomplete="off" title="Allow new deposits again">Unpause Deposits</button>
+          <button id="confiscate-btn" class="btn btn-danger" hidden autocomplete="off" title="Seize the account's deposit and send it to the owner">Confiscate Deposit</button>
         </div>
       </section>
 
-      <output id="output" class="message" aria-live="polite"></output>
       <pre id="status" class="status"></pre>
     </main>
 
