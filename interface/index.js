@@ -60,7 +60,7 @@ const abi = [
   },
   {
     "inputs": [],
-    "name": "WithdrawalNotIntiated",
+    "name": "WithdrawalNotInitiated",
     "type": "error"
   },
   {
@@ -363,15 +363,15 @@ async function depositFunction() {
   outputEl.innerText = "deposit requirement: " + window.ethers.utils.formatEther(amount) + " ETH";
   try{
     const tx = await contract.deposit({value: amount});
-    tx.wait();
+    await tx.wait();
   } catch (error){
     if (await contract.paused()){
       outputEl.innerText = ("Error making deposit, the contract is blocking new deposits.");
     }
-    else if (amount > provider.getBalance(myAddress)){
+    else if (amount.gt(await provider.getBalance(myAddress))){
       outputEl.innerText = ("Error making deposit, wallet balance insufficient.");
     }
-    else if (error.reason == "Error: VM Exception while processing transaction: reverted with custom error 'DepositAlreadyPresent()'"){
+    else if ((error.reason || error.message || "").includes("DepositAlreadyPresent")){
       outputEl.innerText = ("Error making deposit, address has existing deposit.");
     }
     else {
@@ -386,7 +386,7 @@ async function depositFunction() {
 async function adminWithdrawFunction() {
   try {
     const tx = await contract.privWithdraw(inputEl.value);
-    tx.wait();
+    await tx.wait();
     outputEl.innerText = "Admin withdrawal completed";
   } catch (error) {
     console.log(error);
@@ -399,6 +399,7 @@ async function adminWithdrawFunction() {
 async function withdrawFunction() {
   try {
     const tx = await contract.withdrawDeposit();
+    await tx.wait();
     outputEl.innerText = "Withdrawal completed";
   } catch (error) {
     console.log(error);
@@ -411,11 +412,14 @@ async function withdrawFunction() {
 async function confiscateFunction() {
   if (!inputEl.value){
     outputEl.innerText = "Enter address to confiscate from";
+    return;
   }
   try {
     const tx = await contract.confiscate(inputEl.value);
+    await tx.wait();
     outputEl.innerText = "Confiscation complete";
   } catch (error) {
+    outputEl.innerText = "Error confiscating deposit";
     console.log(error);
   }
   checkContract();
